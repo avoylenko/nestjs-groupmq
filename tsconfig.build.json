@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "sourceMap": false,
+    "declarationMap": false
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "e2e",
+    "**/*.spec.ts",
+    "vitest.config.mts",
+    "vitest.config.e2e.mts"
+  ]
+}
