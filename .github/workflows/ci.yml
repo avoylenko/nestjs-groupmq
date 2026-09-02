@@ -21,6 +21,10 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      # Type-checks the spec and e2e sources too: `npm run build` excludes them
+      # and vitest transpiles without checking, so nothing else would catch a
+      # type error in test code.
+      - run: npm run typecheck
       - run: npm run build
       - run: npm test
 

@@ -11,6 +11,7 @@ import type {
 } from './interfaces/shared-groupmq-config.interface';
 import type {
   RegisterQueueAsyncOptions,
+  RegisterQueueFactoryOptions,
   RegisterQueueOptions,
   RegisterQueueOptionsFactory,
 } from './interfaces/register-queue-options.interface';
@@ -67,8 +68,17 @@ export function createQueueOptionProviders(
   }));
 }
 
+/**
+ * The subset of registration options that determines a queue's DI wiring: the
+ * injection tokens and which shared configuration it inherits. Every other
+ * option (`namespace`, `connection`, job options) is read from the options token
+ * at instantiation time — for the async path that token resolves later, so
+ * nothing else may be captured here.
+ */
+type QueueWiringOptions = Pick<RegisterQueueOptions, 'name' | 'configKey'>;
+
 export function createQueueProviders(
-  options: RegisterQueueOptions[],
+  options: QueueWiringOptions[],
 ): Provider[] {
   return options.reduce<Provider[]>((providers, option) => {
     const queueName = option.name ?? DEFAULT_QUEUE_NAME;
@@ -120,19 +130,30 @@ export function createAsyncQueueOptionsProviders(
 function createAsyncQueueOptionsProvider(
   options: RegisterQueueAsyncOptions,
 ): Provider {
-  const identity = {
-    name: options.name,
-    namespace: options.namespace,
-    configKey: options.configKey,
-  };
+  // `name` and `configKey` derive the injection tokens, so they are pinned to the
+  // registration site and always win over whatever the factory returns.
+  const identity = { name: options.name, configKey: options.configKey };
+  // `namespace` is ordinary queue configuration, not identity: the factory is free
+  // to supply it (see `RegisterQueueFactoryOptions`). Only apply the
+  // registration-site value when one was actually given, otherwise spreading
+  // `namespace: undefined` would discard the factory's namespace and `buildQueue`
+  // would silently fall back to the queue name.
+  const namespaceOverride =
+    options.namespace === undefined ? {} : { namespace: options.namespace };
+
+  const mergeIdentity = (
+    factoryOptions: RegisterQueueFactoryOptions,
+  ): RegisterQueueOptions => ({
+    ...factoryOptions,
+    ...identity,
+    ...namespaceOverride,
+  });
 
   if (options.useFactory) {
     return {
       provide: getQueueOptionsToken(options.name),
-      useFactory: async (...args: unknown[]): Promise<RegisterQueueOptions> => {
-        const factoryOptions = await options.useFactory!(...args);
-        return { ...factoryOptions, ...identity };
-      },
+      useFactory: async (...args: unknown[]): Promise<RegisterQueueOptions> =>
+        mergeIdentity(await options.useFactory!(...args)),
       inject: options.inject || [],
     };
   }
@@ -142,10 +163,8 @@ function createAsyncQueueOptionsProvider(
     provide: getQueueOptionsToken(options.name),
     useFactory: async (
       factory: RegisterQueueOptionsFactory,
-    ): Promise<RegisterQueueOptions> => {
-      const factoryOptions = await factory.createRegisterQueueOptions();
-      return { ...factoryOptions, ...identity };
-    },
+    ): Promise<RegisterQueueOptions> =>
+      mergeIdentity(await factory.createRegisterQueueOptions()),
     inject: [factoryToken!],
   };
 }

@@ -98,10 +98,11 @@ export class GroupMqModule {
     ...options: RegisterQueueAsyncOptions[]
   ): DynamicModule {
     const optionProviders = createAsyncQueueOptionsProviders(options);
+    // Only the wiring fields: the namespace resolves later, via the async
+    // options token that each queue provider injects.
     const queueProviders = createQueueProviders(
       options.map((option) => ({
         name: option.name,
-        namespace: option.namespace,
         configKey: option.configKey,
       })),
     );

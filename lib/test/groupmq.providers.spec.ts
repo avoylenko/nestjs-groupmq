@@ -147,6 +147,74 @@ describe('async option / config providers', () => {
     });
   });
 
+  it('registerQueueAsync useFactory keeps a factory-provided namespace', async () => {
+    const [provider] = createAsyncQueueOptionsProviders([
+      {
+        name: 'flow.actions',
+        useFactory: async () => ({ namespace: 'flow.actions.v1' }),
+        inject: [],
+      },
+    ]) as any[];
+
+    await expect(provider.useFactory()).resolves.toMatchObject({
+      name: 'flow.actions',
+      namespace: 'flow.actions.v1',
+    });
+  });
+
+  it('registerQueueAsync prefers a registration-site namespace over the factory one', async () => {
+    const [provider] = createAsyncQueueOptionsProviders([
+      {
+        name: 'flow.actions',
+        namespace: 'flow.actions.pinned',
+        useFactory: async () => ({ namespace: 'flow.actions.v1' }),
+        inject: [],
+      },
+    ]) as any[];
+
+    await expect(provider.useFactory()).resolves.toMatchObject({
+      namespace: 'flow.actions.pinned',
+    });
+  });
+
+  it('registerQueueAsync never lets the factory override name/configKey', async () => {
+    const [provider] = createAsyncQueueOptionsProviders([
+      {
+        name: 'orders',
+        configKey: 'analytics',
+        useFactory: async () =>
+          ({ name: 'hijacked', configKey: 'hijacked' }) as any,
+        inject: [],
+      },
+    ]) as any[];
+
+    await expect(provider.useFactory()).resolves.toMatchObject({
+      name: 'orders',
+      configKey: 'analytics',
+    });
+  });
+
+  it('registerQueueAsync useClass keeps a factory-provided namespace', async () => {
+    class NamespacedOptionsFactory {
+      createRegisterQueueOptions() {
+        return { namespace: 'flow.actions.v1' };
+      }
+    }
+    const providers = createAsyncQueueOptionsProviders([
+      { name: 'flow.actions', useClass: NamespacedOptionsFactory },
+    ]) as any[];
+    const optionProvider = providers.find(
+      (p) => p.provide === getQueueOptionsToken('flow.actions'),
+    );
+
+    await expect(
+      optionProvider.useFactory(new NamespacedOptionsFactory()),
+    ).resolves.toMatchObject({
+      name: 'flow.actions',
+      namespace: 'flow.actions.v1',
+    });
+  });
+
   it('registerQueueAsync useClass also provides the factory class', () => {
     class OrdersOptionsFactory {
       createRegisterQueueOptions() {

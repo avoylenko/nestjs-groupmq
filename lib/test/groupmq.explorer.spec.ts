@@ -214,7 +214,7 @@ describe('GroupMqExplorer (edge cases)', () => {
   });
 
   it('resolves a fresh instance per job for request-scoped processors', async () => {
-    @Processor('scoped', { scope: Scope.REQUEST })
+    @Processor({ name: 'scoped', scope: Scope.REQUEST })
     class ScopedProcessor extends WorkerHost {
       processed: any[] = [];
       async process(job: any): Promise<string> {

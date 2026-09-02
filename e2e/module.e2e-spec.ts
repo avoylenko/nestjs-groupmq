@@ -138,4 +138,12 @@ describe.skipIf(!redisAvailable)('GroupMqModule async registration (e2e)', () =>
     await waitFor(() => asyncResults.processed.length === 1);
     expect(asyncResults.processed).toEqual(['x']);
   });
+
+  it('applies the namespace returned by the registerQueueAsync factory', () => {
+    const service = app.get(AsyncOrdersService);
+    // Regression guard: the namespace must come from the factory, not fall back
+    // to the queue name. Jobs round-trip either way (queue and worker share the
+    // instance), so assert the namespace itself.
+    expect(service.queue.rawNamespace).toBe(asyncNamespace);
+  });
 });
