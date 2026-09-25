@@ -26,13 +26,7 @@ import {
 } from './groupmq.messages';
 import { InvalidProcessorClassError } from './errors/invalid-processor-class.error';
 import type { WorkerHost } from './hosts/worker-host.class';
-import type { RegisterQueueOptions } from './interfaces/register-queue-options.interface';
 import { getQueueToken } from './utils/get-queue-token.util';
-
-interface RepeatableJobRegistration {
-  queue: Queue;
-  jobs: NonNullable<RegisterQueueOptions['repeatableJobs']>;
-}
 
 @Injectable()
 export class GroupMqExplorer
@@ -40,7 +34,6 @@ export class GroupMqExplorer
 {
   private readonly logger = new Logger(GroupMqExplorer.name);
   private readonly workers: Worker[] = [];
-  private readonly repeatableJobRegistrations: RepeatableJobRegistration[] = [];
   private started = false;
 
   constructor(
@@ -52,7 +45,6 @@ export class GroupMqExplorer
 
   onModuleInit(): void {
     this.createWorkers();
-    this.collectRepeatableJobs();
   }
 
   async onApplicationBootstrap(): Promise<void> {
@@ -73,7 +65,7 @@ export class GroupMqExplorer
   }
 
   /**
-   * Starts every discovered worker and enqueues declarative repeatable jobs.
+   * Starts every discovered worker.
    * Idempotent. Invoked automatically on bootstrap unless `manualRegistration`
    * is enabled, in which case `GroupMqRegistrar.register()` calls it.
    */
@@ -88,7 +80,6 @@ export class GroupMqExplorer
         this.logger.error(`Worker run loop failed: ${String(err)}`);
       });
     }
-    await this.enqueueRepeatableJobs();
   }
 
   private createWorkers(): void {
@@ -191,46 +182,6 @@ export class GroupMqExplorer
           (instance as Record<string, any>)[methodName].apply(instance, args),
         );
       });
-  }
-
-  private collectRepeatableJobs(): void {
-    const optionWrappers = this.discoveryService
-      .getProviders()
-      .filter(
-        (wrapper) =>
-          typeof wrapper.name === 'string' &&
-          wrapper.name.startsWith(GROUPMQ_QUEUE_OPTIONS_TOKEN_PREFIX) &&
-          !!wrapper.instance,
-      );
-
-    for (const wrapper of optionWrappers) {
-      const options = wrapper.instance as RegisterQueueOptions;
-      if (!options.repeatableJobs?.length) {
-        continue;
-      }
-      const queue = this.resolveQueue(options.name);
-      if (!queue) {
-        continue;
-      }
-      this.repeatableJobRegistrations.push({
-        queue,
-        jobs: options.repeatableJobs,
-      });
-    }
-  }
-
-  private async enqueueRepeatableJobs(): Promise<void> {
-    for (const { queue, jobs } of this.repeatableJobRegistrations) {
-      for (const job of jobs) {
-        try {
-          await queue.add(job);
-        } catch (err) {
-          this.logger.error(
-            `Failed to enqueue repeatable job for group "${job.groupId}": ${String(err)}`,
-          );
-        }
-      }
-    }
   }
 
   private resolveQueue(queueName?: string): Queue | undefined {

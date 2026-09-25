@@ -26,13 +26,11 @@ import {
 function extractQueueOptions(
   options: RegisterQueueOptions,
 ): GroupMqQueueOptions {
-  const { name, namespace, configKey, connection, repeatableJobs, ...rest } =
-    options;
+  const { name, namespace, configKey, connection, ...rest } = options;
   void name;
   void namespace;
   void configKey;
   void connection;
-  void repeatableJobs;
   return rest;
 }
 

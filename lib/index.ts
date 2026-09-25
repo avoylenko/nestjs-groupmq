@@ -16,7 +16,6 @@ export type {
   AddOptions,
   BackoffStrategy,
   QueueOptions,
-  RepeatOptions,
   ReservedJob,
   WorkerEvents,
   WorkerOptions,

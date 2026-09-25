@@ -14,7 +14,6 @@ groupmq allows, so if you know `@nestjs/bullmq` you already know this package.
 - `@InjectQueue()`, `@Processor()`, `WorkerHost`, `@OnWorkerEvent()`
 - Automatic worker lifecycle (start on bootstrap, graceful close on shutdown)
 - Request-scoped processors
-- Declarative repeatable jobs
 - Bull Board helper
 
 ## Installation
@@ -153,21 +152,6 @@ groupmq worker. Supported events: `completed`, `failed`, `ready`, `error`,
 
 > Not supported on request-scoped processors.
 
-## Repeatable jobs
-
-Declare repeatable jobs on the queue; they are enqueued automatically on
-application bootstrap.
-
-```ts
-GroupMqModule.registerQueue({
-  name: 'reports',
-  repeatableJobs: [
-    { groupId: 'reports', data: { kind: 'daily' }, repeat: { every: 60_000 } },
-    { groupId: 'emails', data: { kind: 'digest' }, repeat: { pattern: '0 9 * * 1-5' } },
-  ],
-});
-```
-
 ## Bull Board
 
 ```ts
@@ -220,8 +204,7 @@ npm run test:e2e    # e2e tests (requires Redis at 127.0.0.1:6379)
 The e2e suite exercises the integration end-to-end against a real Redis,
 including module wiring (sync + async registration) and the groupmq behaviours
 the wrapper surfaces — per-group FIFO ordering, cross-group concurrency,
-retry/backoff with the `failed` event, delayed jobs, declarative repeatable
-jobs, and graceful shutdown of in-flight jobs.
+retry/backoff with the `failed` event, and graceful shutdown of in-flight jobs.
 
 ## License
 

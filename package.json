@@ -1,6 +1,6 @@
 {
   "name": "@avoylenko/nestjs-groupmq",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "NestJS module for groupmq - per-group FIFO Redis queues, in the style of @nestjs/bullmq",
   "homepage": "https://github.com/avoylenko/nestjs-groupmq#readme",
   "bugs": {
@@ -27,7 +27,7 @@
     "dist"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "keywords": [
     "nestjs",
@@ -51,8 +51,8 @@
   "peerDependencies": {
     "@nestjs/common": "^10.0.0 || ^11.0.0",
     "@nestjs/core": "^10.0.0 || ^11.0.0",
-    "groupmq": "^1.0.0",
-    "ioredis": "^5.0.0"
+    "groupmq": "^2.0.0-0",
+    "ioredis": "^5.0.0 || ^6.0.0"
   },
   "devDependencies": {
     "@nestjs/common": "11.1.21",
@@ -61,7 +61,7 @@
     "@nestjs/testing": "11.1.21",
     "@swc/core": "^1.15.43",
     "@types/node": "24.12.4",
-    "groupmq": "1.1.0",
+    "groupmq": "2.0.0-next.7",
     "ioredis": "5.4.1",
     "reflect-metadata": "0.2.2",
     "rimraf": "6.0.1",

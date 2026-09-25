@@ -83,9 +83,6 @@ describe('GroupMqExplorer', () => {
       metatype: Object,
       instance: {
         name: 'orders',
-        repeatableJobs: [
-          { groupId: 'reports', data: { kind: 'daily' }, repeat: { every: 1000 } },
-        ],
       },
     });
 
@@ -141,16 +138,11 @@ describe('GroupMqExplorer', () => {
     expect(processorInstance.completedWith).toBe(job);
   });
 
-  it('starts workers and enqueues repeatable jobs on bootstrap', async () => {
+  it('starts workers on bootstrap', async () => {
     explorer.onModuleInit();
     await explorer.onApplicationBootstrap();
 
     expect(FakeWorker.last.run).toHaveBeenCalledTimes(1);
-    expect(fakeQueue.add).toHaveBeenCalledWith({
-      groupId: 'reports',
-      data: { kind: 'daily' },
-      repeat: { every: 1000 },
-    });
   });
 
   it('does not auto-start workers when manualRegistration is enabled', async () => {

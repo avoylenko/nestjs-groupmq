@@ -120,7 +120,6 @@ const retryState = {
   concurrency: 1,
   blockingTimeoutSec: 1,
   backoff: () => 20,
-  schedulerIntervalMs: 50,
 })
 class RetryProcessor extends WorkerHost {
   async process(job: ReservedJob<RetryData>): Promise<void> {
@@ -160,72 +159,6 @@ class RetryService {
   providers: [RetryProcessor, RetryService],
 })
 class RetryModule {}
-
-// ---------------------------------------------------------------------------
-// Delay: delayed jobs become available later than immediate ones.
-// Mirrors groupmq test/queue.delay.test.ts.
-// ---------------------------------------------------------------------------
-const delayState = { processedAt: {} as Record<string, number> };
-
-@Processor('delay', {
-  concurrency: 2,
-  blockingTimeoutSec: 1,
-  schedulerIntervalMs: 50,
-})
-class DelayProcessor extends WorkerHost {
-  async process(job: ReservedJob<{ id: string }>): Promise<void> {
-    delayState.processedAt[job.data.id] = Date.now();
-  }
-}
-
-@Injectable()
-class DelayService {
-  constructor(@InjectQueue('delay') readonly queue: Queue<{ id: string }>) {}
-}
-
-@Module({
-  imports: [
-    GroupMqModule.forRoot({ connection }),
-    GroupMqModule.registerQueue({
-      name: 'delay',
-      namespace: uniqueNamespace('delay'),
-    }),
-  ],
-  providers: [DelayProcessor, DelayService],
-})
-class DelayModule {}
-
-// ---------------------------------------------------------------------------
-// Repeatable: declarative repeatableJobs re-run on an interval.
-// Mirrors groupmq test/queue.cron.test.ts (repeat: { every }).
-// ---------------------------------------------------------------------------
-const repeatState = { count: 0 };
-
-@Processor('repeat', {
-  concurrency: 1,
-  blockingTimeoutSec: 1,
-  schedulerIntervalMs: 50,
-})
-class RepeatProcessor extends WorkerHost {
-  async process(): Promise<void> {
-    repeatState.count += 1;
-  }
-}
-
-@Module({
-  imports: [
-    GroupMqModule.forRoot({ connection }),
-    GroupMqModule.registerQueue({
-      name: 'repeat',
-      namespace: uniqueNamespace('repeat'),
-      repeatableJobs: [
-        { groupId: 'r', data: { kind: 'tick' }, repeat: { every: 100 } },
-      ],
-    }),
-  ],
-  providers: [RepeatProcessor],
-})
-class RepeatModule {}
 
 // ---------------------------------------------------------------------------
 // Graceful shutdown: in-flight jobs finish when the app shuts down.
@@ -355,50 +288,6 @@ describe.skipIf(!redisAvailable)('groupmq behaviors via NestJS (e2e)', () => {
       // Poisoned job was retried and eventually dead-lettered (failed event fired).
       expect(retryState.attempts['x']).toBeGreaterThanOrEqual(2);
       expect(retryState.failed).toContain('x');
-    });
-  });
-
-  describe('delay', () => {
-    let app: TestingModule;
-    beforeEach(() => {
-      delayState.processedAt = {};
-    });
-    afterEach(async () => {
-      await app?.close().catch(() => undefined);
-    });
-
-    it('runs delayed jobs after immediate ones', async () => {
-      app = await bootApp(DelayModule);
-      const queue = app.get(DelayService).queue;
-      const base = Date.now();
-
-      await queue.add({ groupId: 'now', data: { id: 'now' } });
-      await queue.add({ groupId: 'later', data: { id: 'later' }, delay: 800 });
-
-      await waitFor(
-        () =>
-          delayState.processedAt['now'] !== undefined &&
-          delayState.processedAt['later'] !== undefined,
-      );
-
-      expect(delayState.processedAt['now'] - base).toBeLessThan(600);
-      expect(delayState.processedAt['later'] - base).toBeGreaterThanOrEqual(600);
-    });
-  });
-
-  describe('repeatable jobs', () => {
-    let app: TestingModule;
-    beforeEach(() => {
-      repeatState.count = 0;
-    });
-    afterEach(async () => {
-      await app?.close().catch(() => undefined);
-    });
-
-    it('re-runs declarative repeatable jobs on an interval', async () => {
-      app = await bootApp(RepeatModule);
-      await waitFor(() => repeatState.count >= 2, 10_000);
-      expect(repeatState.count).toBeGreaterThanOrEqual(2);
     });
   });
 
